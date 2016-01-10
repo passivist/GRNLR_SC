@@ -31,8 +31,6 @@ loadRelative("INIT_GRNLR.scd");
 loadRelative("Grnlr.scd");
 
 s.waitForBoot{
-
-	var version = "GRNLR";
 	var width = 880;
 	var height = 440;
 
@@ -45,11 +43,12 @@ s.waitForBoot{
 	);
 	var labelFont	= Font("Sans", 10, true);
 	var path 		= "String";
-	var win 			= Window.new(version, Rect(0, height, width, height), false, false, scroll: true);
+	var win 			= Window.new("GRNLR", Rect(0, height, width, height), false, true, scroll: true);
 	var synthView 	= View.new(win, Rect(10, 38, width - 20, height - 38));
 	var seqView 	= View.new(win, Rect(10, 38, width, 1510)).visible_(false);
 
 	var buf;
+	~grnlr_bus = Bus.audio(s, 2);
 
 	//-------------------------- TOP SWITCHES --------------------------//
 	{
@@ -139,7 +138,7 @@ s.waitForBoot{
 					buf.postln;
 
 					waveform.load(path);											// load waveform into SoundFileView
-					{ 0.1.wait; ~loadSynth.value(buf) }.fork(AppClock)	// build synthdef with buffer
+					{ 0.1.wait; ~loadSynth.value(buf, ~grnlr_bus) }.fork(AppClock)	// build synthdef with buffer
 				});
 			};
 
@@ -155,7 +154,7 @@ s.waitForBoot{
 
 			var rPos	= EZNumber.new(mainControlsView,
 				Rect(xOffset, rowSize * 3 + yOffset, kSize, kSize), "rPos",
-				[0, 0.5, 3, 0, ~grnlrPar.rPos], {|item|
+				[0, 0.7, 3, 0, ~grnlrPar.rPos], {|item|
 					~grnlrPar.rPos = item.value;
 			}, layout: \line2);
 
@@ -217,7 +216,7 @@ s.waitForBoot{
 
 				var rDur = EZNumber.new(mainControlsView,
 					Rect(0, rowSize * 3 + yOffset, kSize, kSize), "rDur",
-					[0, 0.5, 'lin', 0, ~grnlrPar.rDur], {|item|
+					[0, 1, 'lin', 0, ~grnlrPar.rDur], {|item|
 						~grnlrPar.rDur = item.value;
 				}, layout: \line2);
 
@@ -371,6 +370,7 @@ s.waitForBoot{
 
 	{	/* TODO:
 		*	Refactor Code: implement sequencer with function factory so changes can be implemented more easily
+		*	A change in EnvLoop Length should reflect in the appearance of the grid
 		*/
 		var asEnv = { |envView, curve|
 			var val, times, levels;
@@ -382,9 +382,13 @@ s.waitForBoot{
 			});
 			Env.new(levels, times, curve);
 		};
+
+		var textPos = 720;
+		var curvePos = 820;
+		var stepsPos = 770;
+		var envWidth = 710;
 		{
 			// POSITION
-
 			var offY = 0;
 			var name = "Position";
 			var tDef_name = 'seqPos';
@@ -393,26 +397,26 @@ s.waitForBoot{
 			var curve	 = 0;
 			var env 	 = Env.new(0 ! numSteps);
 
-			var envView  = EnvelopeView.new(seqView, Rect(10, offY + 0, 800, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
+			var envView  = EnvelopeView.new(seqView, Rect(0, offY + 0, envWidth, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
 				env = asEnv.value(item, curve);
 			}).gridOn_(true).grid_(0.0625@0.1);
 
-			var text = StaticText.new(seqView, Rect(820, offY + 0, 80, 20)).string_(name);
+			var text = StaticText.new(seqView, Rect(textPos, offY + 0, 80, 20)).string_(name);
 
-			var button 	= Button.new(seqView, Rect(820, offY + 30, 80, 40)).states_([
+			var button 	= Button.new(seqView, Rect(textPos, offY + 30, 80, 40)).states_([
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
 				if(item.value > 0, {Tdef(tDef_name).play;}, { Tdef(tDef_name).stop; })
 			};
 
-			var cur	 = EZKnob.new(seqView, Rect(920, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
+			var cur	 = EZKnob.new(seqView, Rect(curvePos, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
 				curve = item.value;
 				envView.curves = curve;
 				env = asEnv.value(envView, curve);
 			});
 
-			var steps	= EZNumber.new(seqView, Rect(870, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
+			var steps	= EZNumber.new(seqView, Rect(stepsPos, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
 				var old = envView.value;
 				var old_numSteps = numSteps;
 				var new_amps, new_times;
@@ -425,7 +429,7 @@ s.waitForBoot{
 				env = asEnv.value(envView, curve);
 			}, numSteps, layout: 'line2');
 
-			var speed = EZNumber.new(seqView, Rect(820, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
+			var speed = EZNumber.new(seqView, Rect(textPos, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
 				length = item.value * 128;
 			}, 4, layout: 'line2' );
 
@@ -452,26 +456,26 @@ s.waitForBoot{
 			var curve	  = 0;
 			var env 	  = Env.new(0 ! numSteps);
 
-			var envView  = EnvelopeView.new(seqView, Rect(10, offY + 0, 800, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
+			var envView  = EnvelopeView.new(seqView, Rect(0, offY + 0, envWidth, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
 				env = asEnv.value(item, curve);
 			}).gridOn_(true).grid_(0.0625@0.1);
 
-			var text = StaticText.new(seqView, Rect(820, offY + 0, 80, 20)).string_(name);
+			var text = StaticText.new(seqView, Rect(textPos, offY + 0, 80, 20)).string_(name);
 
-			var button 	= Button.new(seqView, Rect(820, offY + 30, 80, 40)).states_([
+			var button 	= Button.new(seqView, Rect(textPos, offY + 30, 80, 40)).states_([
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
 				if(item.value > 0, {Tdef(tDef_name).play;}, { Tdef(tDef_name).stop; })
 			};
 
-			var cur	 = EZKnob.new(seqView, Rect(920, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
+			var cur	 = EZKnob.new(seqView, Rect(curvePos, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
 				curve = item.value;
 				envView.curves = curve;
 				env = asEnv.value(envView, curve);
 			});
 
-			var steps	= EZNumber.new(seqView, Rect(870, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
+			var steps	= EZNumber.new(seqView, Rect(stepsPos, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
 				var old = envView.value;
 				var old_numSteps = numSteps;
 				var new_amps, new_times;
@@ -484,7 +488,7 @@ s.waitForBoot{
 				env = asEnv.value(envView, curve);
 			}, numSteps, layout: 'line2');
 
-			var speed = EZNumber.new(seqView, Rect(820, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
+			var speed = EZNumber.new(seqView, Rect(textPos, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
 				length = item.value * 128;
 			}, 4, layout: 'line2' );
 
@@ -511,26 +515,26 @@ s.waitForBoot{
 			var curve	 = 0;
 			var env 	 = Env.new(0 ! numSteps);
 
-			var envView  = EnvelopeView.new(seqView, Rect(10, offY + 0, 800, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
+			var envView  = EnvelopeView.new(seqView, Rect(0, offY + 0, envWidth, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
 				env = asEnv.value(item, curve);
 			}).gridOn_(true).grid_(0.0625@0.1);
 
-			var text = StaticText.new(seqView, Rect(820, offY + 0, 80, 20)).string_(name);
+			var text = StaticText.new(seqView, Rect(textPos, offY + 0, 80, 20)).string_(name);
 
-			var button 	= Button.new(seqView, Rect(820, offY + 30, 80, 40)).states_([
+			var button 	= Button.new(seqView, Rect(textPos, offY + 30, 80, 40)).states_([
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
 				if(item.value > 0, {Tdef(tDef_name).play;}, { Tdef(tDef_name).stop; })
 			};
 
-			var cur	 = EZKnob.new(seqView, Rect(920, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
+			var cur	 = EZKnob.new(seqView, Rect(curvePos, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
 				curve = item.value;
 				envView.curves = curve;
 				env = asEnv.value(envView, curve);
 			});
 
-			var steps	= EZNumber.new(seqView, Rect(870, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
+			var steps	= EZNumber.new(seqView, Rect(stepsPos, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
 				var old = envView.value;
 				var old_numSteps = numSteps;
 				var new_amps, new_times;
@@ -543,7 +547,7 @@ s.waitForBoot{
 				env = asEnv.value(envView, curve);
 			}, numSteps, layout: 'line2');
 
-			var speed = EZNumber.new(seqView, Rect(820, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
+			var speed = EZNumber.new(seqView, Rect(textPos, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
 				length = item.value * 128;
 			}, 4, layout: 'line2' );
 
@@ -571,26 +575,26 @@ s.waitForBoot{
 			var curve	 = 0;
 			var env 	 = Env.new(0 ! numSteps);
 
-			var envView  = EnvelopeView.new(seqView, Rect(10, offY + 0, 800, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
+			var envView  = EnvelopeView.new(seqView, Rect(0, offY + 0, envWidth, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
 				env = asEnv.value(item, curve);
 			}).gridOn_(true).grid_(0.0625@0.1);
 
-			var text = StaticText.new(seqView, Rect(820, offY + 0, 80, 20)).string_(name);
+			var text = StaticText.new(seqView, Rect(textPos, offY + 0, 80, 20)).string_(name);
 
-			var button 	= Button.new(seqView, Rect(820, offY + 30, 80, 40)).states_([
+			var button 	= Button.new(seqView, Rect(textPos, offY + 30, 80, 40)).states_([
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
 				if(item.value > 0, {Tdef(tDef_name).play;}, { Tdef(tDef_name).stop; })
 			};
 
-			var cur	 = EZKnob.new(seqView, Rect(920, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
+			var cur	 = EZKnob.new(seqView, Rect(curvePos, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
 				curve = item.value;
 				envView.curves = curve;
 				env = asEnv.value(envView, curve);
 			});
 
-			var steps	= EZNumber.new(seqView, Rect(870, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
+			var steps	= EZNumber.new(seqView, Rect(stepsPos, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
 				var old = envView.value;
 				var old_numSteps = numSteps;
 				var new_amps, new_times;
@@ -603,7 +607,7 @@ s.waitForBoot{
 				env = asEnv.value(envView, curve);
 			}, numSteps, layout: 'line2');
 
-			var speed = EZNumber.new(seqView, Rect(820, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
+			var speed = EZNumber.new(seqView, Rect(textPos, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
 				length = item.value * 128;
 			}, 4, layout: 'line2' );
 
@@ -633,26 +637,26 @@ s.waitForBoot{
 			var curve	 = 0;
 			var env 	 = Env.new(0.5 ! numSteps);
 
-			var envView  = EnvelopeView.new(seqView, Rect(10, offY + 0, 800, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
+			var envView  = EnvelopeView.new(seqView, Rect(0, offY + 0, envWidth, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
 				env = asEnv.value(item, curve);
 			}).gridOn_(true).grid_(0.0625@0.1);
 
-			var text = StaticText.new(seqView, Rect(820, offY + 0, 80, 20)).string_(name);
+			var text = StaticText.new(seqView, Rect(textPos, offY + 0, 80, 20)).string_(name);
 
-			var button 	= Button.new(seqView, Rect(820, offY + 30, 80, 40)).states_([
+			var button 	= Button.new(seqView, Rect(textPos, offY + 30, 80, 40)).states_([
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
 				if(item.value > 0, {Tdef(tDef_name).play;}, { Tdef(tDef_name).stop; })
 			};
 
-			var cur	 = EZKnob.new(seqView, Rect(920, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
+			var cur	 = EZKnob.new(seqView, Rect(curvePos, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
 				curve = item.value;
 				envView.curves = curve;
 				env = asEnv.value(envView, curve);
 			});
 
-			var steps	= EZNumber.new(seqView, Rect(870, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
+			var steps	= EZNumber.new(seqView, Rect(stepsPos, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
 				var old = envView.value;
 				var old_numSteps = numSteps;
 				var new_amps, new_times;
@@ -665,7 +669,7 @@ s.waitForBoot{
 				env = asEnv.value(envView, curve);
 			}, numSteps, layout: 'line2');
 
-			var speed = EZNumber.new(seqView, Rect(820, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
+			var speed = EZNumber.new(seqView, Rect(textPos, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
 				length = item.value * 128;
 			}, 4, layout: 'line2' );
 
@@ -695,26 +699,26 @@ s.waitForBoot{
 			var curve	 = 0;
 			var env 	 = Env.new(0 ! numSteps);
 
-			var envView  = EnvelopeView.new(seqView, Rect(10, offY + 0, 800, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
+			var envView  = EnvelopeView.new(seqView, Rect(0, offY + 0, envWidth, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
 				env = asEnv.value(item, curve);
 			}).gridOn_(true).grid_(0.0625@0.1);
 
-			var text = StaticText.new(seqView, Rect(820, offY + 0, 80, 20)).string_(name);
+			var text = StaticText.new(seqView, Rect(textPos, offY + 0, 80, 20)).string_(name);
 
-			var button 	= Button.new(seqView, Rect(820, offY + 30, 80, 40)).states_([
+			var button 	= Button.new(seqView, Rect(textPos, offY + 30, 80, 40)).states_([
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
 				if(item.value > 0, {Tdef(tDef_name).play;}, { Tdef(tDef_name).stop; })
 			};
 
-			var cur	 = EZKnob.new(seqView, Rect(920, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
+			var cur	 = EZKnob.new(seqView, Rect(curvePos, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
 				curve = item.value;
 				envView.curves = curve;
 				env = asEnv.value(envView, curve);
 			});
 
-			var steps	= EZNumber.new(seqView, Rect(870, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
+			var steps	= EZNumber.new(seqView, Rect(stepsPos, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
 				var old = envView.value;
 				var old_numSteps = numSteps;
 				var new_amps, new_times;
@@ -727,7 +731,7 @@ s.waitForBoot{
 				env = asEnv.value(envView, curve);
 			}, numSteps, layout: 'line2');
 
-			var speed = EZNumber.new(seqView, Rect(820, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
+			var speed = EZNumber.new(seqView, Rect(textPos, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
 				length = item.value * 128;
 			}, 4, layout: 'line2' );
 
@@ -757,26 +761,26 @@ s.waitForBoot{
 			var curve	 = 0;
 			var env 	 = Env.new(0 ! numSteps);
 
-			var envView  = EnvelopeView.new(seqView, Rect(10, offY + 0, 800, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
+			var envView  = EnvelopeView.new(seqView, Rect(0, offY + 0, envWidth, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
 				env = asEnv.value(item, curve);
 			}).gridOn_(true).grid_(0.0625@0.1);
 
-			var text = StaticText.new(seqView, Rect(820, offY + 0, 80, 20)).string_(name);
+			var text = StaticText.new(seqView, Rect(textPos, offY + 0, 80, 20)).string_(name);
 
-			var button 	= Button.new(seqView, Rect(820, offY + 30, 80, 40)).states_([
+			var button 	= Button.new(seqView, Rect(textPos, offY + 30, 80, 40)).states_([
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
 				if(item.value > 0, {Tdef(tDef_name).play;}, { Tdef(tDef_name).stop; })
 			};
 
-			var cur	 = EZKnob.new(seqView, Rect(920, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
+			var cur	 = EZKnob.new(seqView, Rect(curvePos, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
 				curve = item.value;
 				envView.curves = curve;
 				env = asEnv.value(envView, curve);
 			});
 
-			var steps	= EZNumber.new(seqView, Rect(870, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
+			var steps	= EZNumber.new(seqView, Rect(stepsPos, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
 				var old = envView.value;
 				var old_numSteps = numSteps;
 				var new_amps, new_times;
@@ -789,7 +793,7 @@ s.waitForBoot{
 				env = asEnv.value(envView, curve);
 			}, numSteps, layout: 'line2');
 
-			var speed = EZNumber.new(seqView, Rect(820, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
+			var speed = EZNumber.new(seqView, Rect(textPos, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
 				length = item.value * 128;
 			}, 4, layout: 'line2' );
 
@@ -819,26 +823,26 @@ s.waitForBoot{
 			var curve	 = 0;
 			var env 	 = Env.new(0 ! numSteps);
 
-			var envView  = EnvelopeView.new(seqView, Rect(10, offY + 0, 800, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
+			var envView  = EnvelopeView.new(seqView, Rect(0, offY + 0, envWidth, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
 				env = asEnv.value(item, curve);
 			}).gridOn_(true).grid_(0.0625@0.1);
 
-			var text = StaticText.new(seqView, Rect(820, offY + 0, 80, 20)).string_(name);
+			var text = StaticText.new(seqView, Rect(textPos, offY + 0, 80, 20)).string_(name);
 
-			var button 	= Button.new(seqView, Rect(820, offY + 30, 80, 40)).states_([
+			var button 	= Button.new(seqView, Rect(textPos, offY + 30, 80, 40)).states_([
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
 				if(item.value > 0, {Tdef(tDef_name).play;}, { Tdef(tDef_name).stop; })
 			};
 
-			var cur	 = EZKnob.new(seqView, Rect(920, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
+			var cur	 = EZKnob.new(seqView, Rect(curvePos, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
 				curve = item.value;
 				envView.curves = curve;
 				env = asEnv.value(envView, curve);
 			});
 
-			var steps	= EZNumber.new(seqView, Rect(870, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
+			var steps	= EZNumber.new(seqView, Rect(stepsPos, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
 				var old = envView.value;
 				var old_numSteps = numSteps;
 				var new_amps, new_times;
@@ -851,7 +855,7 @@ s.waitForBoot{
 				env = asEnv.value(envView, curve);
 			}, numSteps, layout: 'line2');
 
-			var speed = EZNumber.new(seqView, Rect(820, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
+			var speed = EZNumber.new(seqView, Rect(textPos, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
 				length = item.value * 128;
 			}, 4, layout: 'line2' );
 
@@ -881,26 +885,26 @@ s.waitForBoot{
 			var curve	 = 0;
 			var env 	 = Env.new(0 ! numSteps);
 
-			var envView  = EnvelopeView.new(seqView, Rect(10, offY + 0, 800, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
+			var envView  = EnvelopeView.new(seqView, Rect(0, offY + 0, envWidth, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
 				env = asEnv.value(item, curve);
 			}).gridOn_(true).grid_(0.0625@0.1);
 
-			var text = StaticText.new(seqView, Rect(820, offY + 0, 80, 20)).string_(name);
+			var text = StaticText.new(seqView, Rect(textPos, offY + 0, 80, 20)).string_(name);
 
-			var button 	= Button.new(seqView, Rect(820, offY + 30, 80, 40)).states_([
+			var button 	= Button.new(seqView, Rect(textPos, offY + 30, 80, 40)).states_([
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
 				if(item.value > 0, {Tdef(tDef_name).play;}, { Tdef(tDef_name).stop; })
 			};
 
-			var cur	 = EZKnob.new(seqView, Rect(920, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
+			var cur	 = EZKnob.new(seqView, Rect(curvePos, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
 				curve = item.value;
 				envView.curves = curve;
 				env = asEnv.value(envView, curve);
 			});
 
-			var steps	= EZNumber.new(seqView, Rect(870, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
+			var steps	= EZNumber.new(seqView, Rect(stepsPos, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
 				var old = envView.value;
 				var old_numSteps = numSteps;
 				var new_amps, new_times;
@@ -913,7 +917,7 @@ s.waitForBoot{
 				env = asEnv.value(envView, curve);
 			}, numSteps, layout: 'line2');
 
-			var speed = EZNumber.new(seqView, Rect(820, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
+			var speed = EZNumber.new(seqView, Rect(textPos, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
 				length = item.value * 128;
 			}, 4, layout: 'line2' );
 
@@ -942,26 +946,26 @@ s.waitForBoot{
 			var curve	 = 0;
 			var env 	 = Env.new(0 ! numSteps);
 
-			var envView  = EnvelopeView.new(seqView, Rect(10, offY + 0, 800, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
+			var envView  = EnvelopeView.new(seqView, Rect(0, offY + 0, envWidth, 120)).setEnv(env).keepHorizontalOrder_(true).action_({|item|
 				env = asEnv.value(item, curve);
 			}).gridOn_(true).grid_(0.0625@0.1);
 
-			var text = StaticText.new(seqView, Rect(820, offY + 0, 80, 20)).string_(name);
+			var text = StaticText.new(seqView, Rect(textPos, offY + 0, 80, 20)).string_(name);
 
-			var button 	= Button.new(seqView, Rect(820, offY + 30, 80, 40)).states_([
+			var button 	= Button.new(seqView, Rect(textPos, offY + 30, 80, 40)).states_([
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
 				if(item.value > 0, {Tdef(tDef_name).play;}, { Tdef(tDef_name).stop; })
 			};
 
-			var cur	 = EZKnob.new(seqView, Rect(920, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
+			var cur	 = EZKnob.new(seqView, Rect(curvePos, offY + 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
 				curve = item.value;
 				envView.curves = curve;
 				env = asEnv.value(envView, curve);
 			});
 
-			var steps	= EZNumber.new(seqView, Rect(870, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
+			var steps	= EZNumber.new(seqView, Rect(stepsPos, offY + 70, 45, 40), "Steps", [2, 16, 'lin', 1, numSteps], {|item|
 				var old = envView.value;
 				var old_numSteps = numSteps;
 				var new_amps, new_times;
@@ -974,7 +978,7 @@ s.waitForBoot{
 				env = asEnv.value(envView, curve);
 			}, numSteps, layout: 'line2');
 
-			var speed = EZNumber.new(seqView, Rect(820, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
+			var speed = EZNumber.new(seqView, Rect(textPos, offY + 70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4], {|item|
 				length = item.value * 128;
 			}, 4, layout: 'line2' );
 
@@ -1009,6 +1013,10 @@ s.waitForBoot{
 
 		~send.free;
 		~send = nil;
+
+		// here for sinesleeper live set
+		~grnlr_bus.free;
+		~grnlr_bus = nil;
 
 		if(buf.notNil){ buf.free };
 	};

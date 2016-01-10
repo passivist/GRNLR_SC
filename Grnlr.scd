@@ -1,4 +1,4 @@
-~loadSynth = {|buf|
+~loadSynth = {|buf, bus|
 	SynthDef(\grnlr, {
 		// arguments
 		arg out,
@@ -50,6 +50,7 @@
 		sig = Splay.ar(sig, 1, center: pan, level: -6.dbamp); // panorama
 		//Out.ar(~feedBus, sig * (randAmp.linlin(0, 1, 0.5, 0) * hall)); // Hall Send
 		Out.ar(~send, sig * 0.5); // Hall Send
+		Out.ar(~grnlr_bus, sig); // To Looper
 		Out.ar(out, sig);
 	}).add;
 }

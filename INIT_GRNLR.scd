@@ -58,7 +58,7 @@ Tdef(\grnlr, {
 	var dur;
 	loop{
 		var rDur = rand(~grnlrPar.rDur);
-		var dur = (~grnlrPar.dur + rDur) + (~grnlrSeq.dur * ~grnlrPar.durMod);
+		var dur = (~grnlrPar.dur + rand(rDur.neg, rDur)) + (~grnlrSeq.dur * ~grnlrPar.durMod);
 		if(~grnlrPar.toggle > 0, {
 			Synth(\grnlr, [
 				\pos,        	~grnlrPar.pos + (~grnlrSeq.pos * ~grnlrPar.posMod),
