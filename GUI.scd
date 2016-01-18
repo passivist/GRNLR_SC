@@ -3,15 +3,9 @@
 *
 * paramameter:
 *
-* dir				--> verändert den Kontext von pos so, dass bei	dir = 1 von pos bis length gespielt wird und bei
-*																					dir = -1 von (pos + length) bis pos
-* loFiltFreq	--> Frequenz Low-Pass
-* hiFiltFreq	--> Frequenz High-Pass
-* 						→ hierfür eine art filterView??
-*						→ mehr kontroll auf grain zu grain basis
-*
 *
 * transposition	--> über MIDI steuern
+*
 *
 * KONTROLLFUNKTIONEN:
 *
@@ -25,10 +19,18 @@
 */
 
 (
-/* TODO: make more flexible! (allow instances) */
-~send = Bus.audio(s, 2);
+/*
+TODO: make more flexible! (allow instances)
+BUG: send doesn't work on first execution
+*/
+//~send = Bus.audio(s, 2);
 loadRelative("INIT_GRNLR.scd");
 loadRelative("Grnlr.scd");
+loadRelative("reverb.scd");
+
+if(~send.isNil){ ~send = Bus.audio(s, 2) };
+if(~grnlr_bus.isNil){ ~grnlr_bus = Bus.audio(s, 2) };
+if(~grndl_bus.isNil){ ~grndl_bus = Bus.audio(s, 2) };
 
 s.waitForBoot{
 	var width = 880;
@@ -48,7 +50,7 @@ s.waitForBoot{
 	var seqView 	= View.new(win, Rect(10, 38, width, 1510)).visible_(false);
 
 	var buf;
-	~grnlr_bus = Bus.audio(s, 2);
+
 
 	//-------------------------- TOP SWITCHES --------------------------//
 	{
@@ -77,8 +79,6 @@ s.waitForBoot{
 				~grnlrSeq.button_rFill.valueAction_(1);
 				~grnlrSeq.button_Dur.valueAction_(1);
 				~grnlrSeq.button_rDur.valueAction_(1);
-
-
 			}, {
 				~grnlrSeq.button_Pos.valueAction_(0);
 				~grnlrSeq.button_rPos.valueAction_(0);
@@ -357,6 +357,12 @@ s.waitForBoot{
 				Rect(xOffset - 60, rowSize * 3 + yOffset, 50, 80), "send",
 				[0, 1, 'lin', 0, ~grnlrPar.send], {|item|
 					~grnlrPar.send = item.value;
+			}, 0, true);
+
+			var delay  = EZKnob.new(mainControlsView,
+				Rect(xOffset - 60, rowSize * 5 + yOffset, 50, 80), "delay",
+				[0, 1, 'lin', 0, ~grnlrPar.send], {|item|
+					~grnlrPar.delay = item.value;
 			}, 0, true);
 
 		}.value;

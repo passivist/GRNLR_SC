@@ -2,7 +2,7 @@
 	SynthDef(\grnlr, {
 		// arguments
 		arg out,
-		pos, trans, dir, vol, pan, hall,
+		pos, trans, dir, vol, pan, send, delay,
 		rPitch, rAmp, rPos, rFill,
 		filtFreqLo, filtFreqHi, qLo, qHi,
 		ampArr=#[0,1,1,0], timeArr=#[1,1,1], envCurve,
@@ -49,7 +49,8 @@
 
 		sig = Splay.ar(sig, 1, center: pan, level: -6.dbamp); // panorama
 		//Out.ar(~feedBus, sig * (randAmp.linlin(0, 1, 0.5, 0) * hall)); // Hall Send
-		Out.ar(~send, sig * 0.5); // Hall Send
+		Out.ar(~send, sig * send); // Hall Send
+		Out.ar(~grndl_bus, sig * send); // delay Send
 		Out.ar(~grnlr_bus, sig); // To Looper
 		Out.ar(out, sig);
 	}).add;

@@ -7,7 +7,8 @@
 	dir:				1,
 	vol:      	 	1,
 	pan:        	0,
-	hall:       	0,
+	send:       	0,
+	delay:			0,
 
 	filtFreqLo:		20000,
 	filtFreqHi:		20,
@@ -67,6 +68,7 @@ Tdef(\grnlr, {
 				\vol,        	~grnlrPar.vol * (~grnlrSeq.amp.linlin(0, 1, ~grnlrPar.ampMod.linlin(0,1,1,0), 1)),
 				\pan,        	~grnlrPar.pan,
 				\send,       	~grnlrPar.send,
+				\delay,			~grnlrPar.delay,
 
 				\filtFreqLo, 	~grnlrPar.filtFreqLo,
 				\filtFreqHi, 	~grnlrPar.filtFreqHi,
@@ -88,6 +90,6 @@ Tdef(\grnlr, {
 
 			]);
 		});
-		dur.clip(0.001, 2).wait;
+		dur.clip(0.005, 2).wait;
 	};
 }).play;
