@@ -52,6 +52,6 @@
 		Out.ar(~send, sig * send); // Hall Send
 		Out.ar(~grndl_bus, sig * send); // delay Send
 		Out.ar(~grnlr_bus, sig); // To Looper
-		Out.ar(out, sig);
+		Out.ar(~outBus, sig);
 	}).add;
 }

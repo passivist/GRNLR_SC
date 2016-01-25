@@ -4,9 +4,6 @@
 * paramameter:
 *
 *
-* transposition	--> über MIDI steuern
-*
-*
 * KONTROLLFUNKTIONEN:
 *
 * Preset Funktion --> Alle Einstellungen plus Zustand der Modulationsmatrix und location des Buffer Speichern
@@ -24,13 +21,15 @@
 *			-> change structure so global objects like ~grnlrPar and ~grnlrSeq are no longer needed
 *				by using loadRelative in a better way i.e. load INIT_GRNLR when everything else is set up so it can
 *				use local scope (will updates to grnlrPar still work??)
+*			-> scope doesn't work like that and isn't passed in loadRelative find some other way to do this maybe with an environment?
+*
+*			rewrite so ~grnlrSeq is incorperated into ~grnlrPar so that the whole state of the synthesizer can be more easily
+*			stored and recalled via presets
 *
 * BUG: send doesn't work on first execution
 */
-//~send = Bus.audio(s, 2);
-loadRelative("INIT_GRNLR.scd");
-loadRelative("Grnlr.scd");
-loadRelative("reverb.scd");
+
+loadRelative("grnlr_synth.scd");
 
 if(~send.isNil){ ~send = Bus.audio(s, 2) };
 if(~grnlr_bus.isNil){ ~grnlr_bus = Bus.audio(s, 2) };
@@ -55,18 +54,29 @@ s.waitForBoot{
 
 	var buf;
 
+	~grnlrPar = (
+		ampArr:			[0,1,1,0],
+		timeArr:			[0.3,0.3,0.3],
+
+		toggle:			0,
+	);
+
+	~grnlrSeq = (
+		pos: 				0,
+		rPos:				0,
+		pitch:			0,
+		rPitch:			0,
+		amp: 				0,
+		rAmp:				0,
+		fill:				1,
+		rFill:			0,
+		dur:				1,
+		rDur:				0,
+	);
+
 
 	//-------------------------- TOP SWITCHES --------------------------//
 	{
-
-		// on / off switch
-		var on = Button.new(win, Rect(params.offRight - 15, 5, bSize, bSize)).states_([
-			["Off", Color.black, Color.white],
-			["On" , Color.black, Color.white]
-		]).action_({ |item|
-			~grnlrPar.toggle = item.value;
-		});
-
 		// all sequences
 		var seqAll = Button.new(win, Rect(params.offRight - 65, 5, 40, bSize)).states_([
 			[">", Color.black, Color.white],
@@ -115,6 +125,13 @@ s.waitForBoot{
 				TempoClock.default.tempo = item.value/120;
 		}, 120, true, layout: 'horz', margin: 2@2);
 
+		// on / off switch
+		~grnlrPar.put(\toggle,
+			Button.new(win, Rect(params.offRight - 15, 5, bSize, bSize)).states_([
+				["Off", Color.black, Color.white],
+				["On" , Color.black, Color.white]
+		]));
+
 	}.value;
 
 	//-------------------------------------------------------------------//
@@ -140,10 +157,13 @@ s.waitForBoot{
 					buf = Buffer.read(s, path);														// load dragged sample into buffer
 					buf.postln;
 
-					waveform.load(path);																	// load waveform into SoundFileView
+					waveform.load(path);																	// load waveform into SoundFileView#
+					~grnlrPar.put(\path, path);
 					{ 0.1.wait; ~loadSynth.value(buf, ~grnlr_bus) }.fork(AppClock)			// build synthdef with buffer
 				});
 			};
+			~grnlrPar.put(\waveform, waveform);
+			~grnlrPar.put(\buffer, buf);
 
 		}.value;
 
@@ -152,133 +172,105 @@ s.waitForBoot{
 			{
 				var xOffset = 120;
 
-				var pos	 	= Slider.new(mainControlsView,
-					Rect(0, 120, params.offRight, 18)).action_{|item|
-					~grnlrPar.pos = item.value };
+				~grnlrPar.put(\pos, Slider.new(mainControlsView, Rect(0, 120, params.offRight, 18)));
 
-				var rPos	= EZNumber.new(mainControlsView,
-					Rect(xOffset, rowSize * 3 + yOffset, kSize, kSize), "rPos",
-					[0, 1, 3, 0, ~grnlrPar.rPos], {|item|
-						~grnlrPar.rPos = item.value;
-				}, layout: \line2);
+				~grnlrPar.put(\rPos,
+					EZNumber.new(mainControlsView,
+						Rect(xOffset, rowSize * 3 + yOffset, kSize, kSize), "rPos",
+						[0, 1, 3, 0, 0], layout: \line2));
+				~grnlrPar.put(\posMod,
+					EZNumber.new(mainControlsView,
+						Rect(xOffset, rowSize * 4 + yOffset, kSize, kSize), "ePos",
+						[0, 1, 'lin', 0, 1], layout: \line2));
 
-				var envPos	= EZNumber.new(mainControlsView,
-					Rect(xOffset, rowSize * 4 + yOffset, kSize, kSize), "ePos",
-					[0, 1, 'lin', 0, ~grnlrPar.posMod], {|item|
-						~grnlrPar.posMod = item.value;
-				}, layout: \line2);
+				~grnlrPar.put(\rPosMod,
+					EZNumber.new(mainControlsView,
+						Rect(xOffset, rowSize * 5 + yOffset, kSize, kSize), "envR",
+						[0, 1, 'lin', 0, 0], layout: \line2));
 
-				var env_rPos = EZNumber.new(mainControlsView,
-					Rect(xOffset, rowSize * 5 + yOffset, kSize, kSize), "envR",
-					[0, 1, 'lin', 0, ~grnlrPar.rPosMod], {|item|
-						~grnlrPar.rPosMod = item.value;
-				}, layout: \line2);
+				~grnlrPar.put(\dir,
+					EZKnob.new(mainControlsView,
+						Rect(xOffset, rowSize + yOffset, kSize, kSize*2), "Dir",
+						[-1, 1, 'lin', 0, 0]))
 
-				var dir		= EZKnob.new(mainControlsView,
-					Rect(xOffset, rowSize + yOffset, kSize, kSize*2), "Dir",
-					[-1, 1, 'lin', 0, ~grnlrPar.dir], {|item|
-						~grnlrPar.dir = item.value;
-				});
-				~grnlr_pos = pos;
-				~grnlr_rPos = rPos;
-				~grnlr_dir = dir;
 			}.value;
 			// Pitch
 			{
 				var xOffset = 180;
 
-				var pitch  = EZNumber.new(mainControlsView,
-					Rect(xOffset, rowSize * 2 + yOffset, kSize, kSize), "Pitch",
-					[-24, 24, 'lin', 0.5, ~grnlrPar.trans], {|item|
-						~grnlrPar.trans = item.value;
-				}, layout: \line2);
+				~grnlrPar.put(\pitch,
+					EZNumber.new(mainControlsView,
+						Rect(xOffset, rowSize * 2 + yOffset, kSize, kSize), "Pitch",
+						[-24, 24, 'lin', 0.5, 0], layout: \line2));
 
-				var rPitch = EZNumber.new(mainControlsView,
+				~grnlrPar.put(\rPitch, EZNumber.new(mainControlsView,
 					Rect(xOffset, rowSize * 3 + yOffset, kSize, kSize), "rPitch",
-					[0, 1, 4, 0, ~grnlrPar.rPitch], {|item|
-						~grnlrPar.rPitch = item.value;
-				}, layout: \line2);
+					[0, 1, 4, 0, 0],layout: \line2));
 
-				var envPitch = EZNumber.new(mainControlsView,
-					Rect(xOffset, rowSize * 4 + yOffset, kSize, kSize), "ePitch",
-					[0, 48, 'lin', 0, ~grnlrPar.pitchMod], {|item|
-						~grnlrPar.pitchMod = item.value;
-				}, layout: \line2);
+				~grnlrPar.put(\pitchMod,
+					EZNumber.new(mainControlsView,
+						Rect(xOffset, rowSize * 4 + yOffset, kSize, kSize), "ePitch",
+						[0, 48, 'lin', 0, 0], layout: \line2));
 
-				var env_rPitch = EZNumber.new(mainControlsView,
-					Rect(xOffset, rowSize * 5 + yOffset, kSize, kSize), "envR",
-					[0, 1, 'lin', 0, ~grnlrPar.rPitchMod], {|item|
-						~grnlrPar.rPitchMod = item.value;
-				}, layout: \line2);
+				~grnlrPar.put(\rPitchMod,
+					EZNumber.new(mainControlsView,
+						Rect(xOffset, rowSize * 5 + yOffset, kSize, kSize), "envR",
+						[0, 1, 'lin', 0, 0], layout: \line2));
 
 			}.value;
 
 			// duration
 			{
-				var dur  = EZKnob.new(mainControlsView,
-					Rect(0, rowSize+yOffset, kSize, kSize*2), "Dur",
-					[0.01, 2, 'exp', 0, ~grnlrPar.dur], {|item|
-						~grnlrPar.dur = item.value;
-				});
+				~grnlrPar.put(\dur,
+					EZKnob.new(mainControlsView,
+						Rect(0, rowSize+yOffset, kSize, kSize*2), "Dur",
+						[0.01, 2, 'exp', 0, 0.1]));
 
-				var rDur = EZNumber.new(mainControlsView,
+				~grnlrPar.put(\rDur, EZNumber.new(mainControlsView,
 					Rect(0, rowSize * 3 + yOffset, kSize, kSize), "rDur",
-					[0, 1, 'lin', 0, ~grnlrPar.rDur], {|item|
-						~grnlrPar.rDur = item.value;
-				}, layout: \line2);
+					[0, 1, 'lin', 0, 0], layout: \line2));
 
-				var envDur = EZNumber.new(mainControlsView,
-					Rect(0, rowSize * 4 + yOffset, kSize, kSize), "eDur",
-					[0, 1, 'lin', 0, ~grnlrPar.durMod], {|item|
-						~grnlrPar.durMod = item.value;
-				}, layout: \line2);
+				~grnlrPar.put(\durMod,
+					EZNumber.new(mainControlsView,
+						Rect(0, rowSize * 4 + yOffset, kSize, kSize), "eDur",
+						[0, 1, 'lin', 0, 0],  layout: \line2));
 
-				var env_rDur = EZNumber.new(mainControlsView,
-					Rect(0, rowSize * 5 + yOffset, kSize, kSize), "rEnv",
-					[0, 1, 'lin', 0, ~grnlrPar.rDurMod], {|item|
-						~grnlrPar.rDurMod = item.value;
-				}, layout: \line2);
+				~grnlrPar.put(\rDurMod,
+					EZNumber.new(mainControlsView,
+						Rect(0, rowSize * 5 + yOffset, kSize, kSize), "rEnv",
+						[0, 1, 'lin', 0, 0],  layout: \line2));
 
-				~grnlr_dur = dur;
-				~grnlr_rDur = rDur;
 			}.value;
 
 
 			// fill factor
 			{
 				var xOffset = 60;
-				var fill	 = EZKnob.new(mainControlsView,
-					Rect(xOffset, rowSize + yOffset, kSize, kSize*2), "Fill",
-					[0.1, 16, 'exp', 0, ~grnlrPar.fillFactor], {|item|
-						~grnlrPar.fillFactor = item.value;
-				});
-				var rFill	 = EZNumber.new(mainControlsView,
+
+				~grnlrPar.put(\fillFactor,
+					EZKnob.new(mainControlsView,
+						Rect(xOffset, rowSize + yOffset, kSize, kSize*2), "Fill",
+						[0.1, 16, 'exp', 0, 1]));
+
+				~grnlrPar.put(\rFill, EZNumber.new(mainControlsView,
 					Rect(xOffset, rowSize * 3 + yOffset, kSize, kSize), "rFill",
-					[0, 2, 'lin', 0, ~grnlrPar.rFill], {|item|
-						~grnlrPar.rFill = item.value;
-				}, layout: \line2);
+					[0, 2, 'lin', 0, 0], layout: \line2));
 
-				var envFill	 = EZNumber.new(mainControlsView,
+				~grnlrPar.put(\fillMod, EZNumber.new(mainControlsView,
 					Rect(xOffset, rowSize * 4 + yOffset, kSize, kSize), "eFill",
-					[0, 1, 'lin', 0, ~grnlrPar.fillMod], {|item|
-						~grnlrPar.fillMod = item.value;
-				}, layout: \line2);
+					[0, 1, 'lin', 0, 0], layout: \line2));
 
+				~grnlrPar.put(\rFillMod,
+					EZNumber.new(mainControlsView,
+						Rect(xOffset, rowSize * 5 + yOffset, kSize, kSize), "rEnv",
+						[0, 1, 'lin', 0, 0], layout: \line2));
 
-				var env_rFill	 = EZNumber.new(mainControlsView,
-					Rect(xOffset, rowSize * 5 + yOffset, kSize, kSize), "rEnv",
-					[0, 1, 'lin', 0, ~grnlrPar.rFillMod], {|item|
-						~grnlrPar.rFillMod = item.value;
-				}, layout: \line2);
-
-				~grnlr_fill = fill;
-				~grnlr_rFill = rFill;
 			}.value;
 			// grain window
 			{
 				var xOffset = 240;
 
-				var curve = ~grnlrPar.envCurve;
+				var curve = -2;
 				var startEnv = Env.new([0, 1, 1, 0], [0.3, 0.3, 0.3], [curve, 1, curve*(-1)]);
 
 				var t_env 	= StaticText.new(mainControlsView,
@@ -287,13 +279,13 @@ s.waitForBoot{
 				var envView = EnvelopeView.new(mainControlsView,
 					Rect(xOffset, rowSize + yOffset + 20, 260, 140)).keepHorizontalOrder_(true);
 
-				var cur	 = EZNumber.new(mainControlsView,
-					Rect(xOffset, rowSize * 5 + yOffset, kSize, kSize), "Curve",
-					[6, -6, 'lin', 0, ~grnlrPar.envCurve], {|item|
-						~grnlrPar.envCurve = item.value;
-						curve = ~grnlrPar.envCurve;
-						envView.curves = [curve, 0, curve.neg];
-				}, layout: \line2);
+				~grnlrPar.put(\envCurve,
+					EZNumber.new(mainControlsView,
+						Rect(xOffset, rowSize * 5 + yOffset, kSize, kSize), "Curve",
+						[6, -6, 'lin', 0, -2], {|item|
+							curve = ~grnlrPar.envCurve;
+							envView.curves = [item.value, 0, item.value.neg];
+				}, layout: \line2));
 
 				envView.setEnv(startEnv);
 				envView.action_{|item|
@@ -302,38 +294,32 @@ s.waitForBoot{
 					~grnlrPar.ampArr = arr[1];
 				};
 
-				~grnlr_curve = cur;
 			}.value;
 
 			// filter
 			{
 				var xOffset = 520;
 
-				var filtLoFreq  = EZKnob.new(mainControlsView,
-					Rect(xOffset, rowSize + yOffset, kSize+10, kSize*2), "freqLo",
-					[20, 20000, 'exp', 1, ~grnlrPar.filtFreqLo], {|item|
-						~grnlrPar.filtFreqLo = item.value;
-				}, labelWidth: 50);
-				var filtHiFreq  = EZKnob.new(mainControlsView,
-					Rect(xOffset + 80, rowSize + yOffset, kSize+10, kSize*2),
-					"freqHi", [20, 20000, 'exp', 1, ~grnlrPar.filtFreqHi], {|item|
-						~grnlrPar.filtFreqHi = item.value;
-				}, labelWidth: 50);
-				var qLo = EZNumber.new(mainControlsView,
-					Rect(xOffset, rowSize * 3 + yOffset, kSize, kSize), "qLo",
-					[0.1, 1, 'lin', 0, ~grnlrPar.qLo], {|item|
-						~grnlrPar.qLo = item.value;
-				}, layout: \line2);
-				var qHi = EZNumber.new(mainControlsView,
-					Rect(xOffset + 80, rowSize * 3 + yOffset, kSize, kSize),
-					"qHi", [0.1, 1, 'lin', 0, ~grnlrPar.qHi], {|item|
-						~grnlrPar.qHi = item.value;
-				}, layout: \line2);
+				~grnlrPar.put(\filtFreqLo,
+					EZKnob.new(mainControlsView,
+						Rect(xOffset, rowSize + yOffset, kSize+10, kSize*2), "freqLo",
+						[20, 20000, 'exp', 1, 20000], labelWidth: 50));
 
-				~grnlr_filtLo = filtLoFreq;
-				~grnlr_qLo = qLo;
-				~grnlr_filtHi = filtHiFreq;
-				~grnlr_qHi = qHi;
+				~grnlrPar.put(\filtFreqHi,
+					EZKnob.new(mainControlsView,
+						Rect(xOffset + 80, rowSize + yOffset, kSize+10, kSize*2),
+						"freqHi", [20, 20000, 'exp', 1, 20], labelWidth: 50));
+
+				~grnlrPar.put(\qLo,
+					EZNumber.new(mainControlsView,
+						Rect(xOffset, rowSize * 3 + yOffset, kSize, kSize), "qLo",
+						[0.1, 1, 'lin', 0, 1], layout: \line2));
+
+				~grnlrPar.put(\qHi,
+					EZNumber.new(mainControlsView,
+						Rect(xOffset + 80, rowSize * 3 + yOffset, kSize, kSize),
+						"qHi", [0.1, 1, 'lin', 0, 1], layout: \line2));
+
 			}.value;
 		}.value;
 		// master
@@ -341,52 +327,40 @@ s.waitForBoot{
 		{
 			var xOffset = 800;
 
-			var vol  = EZKnob.new(mainControlsView,
-				Rect(xOffset, rowSize + yOffset, kSize, kSize*2), "vol",
-				[0, 1, 3, 0, ~grnlrPar.vol], {|item|
-					~grnlrPar.vol = item.value;
-			}, 1, true);
+			~grnlrPar.put(\vol,
+				EZKnob.new(mainControlsView,
+					Rect(xOffset, rowSize + yOffset, kSize, kSize*2), "vol",
+					[0, 1, 3, 0, 1], true));
 
-			var rAmp  = EZNumber.new(mainControlsView,
-				Rect(xOffset, rowSize * 3 + yOffset, kSize, kSize), "rVol",
-				[0, 1, 'lin', 0, ~grnlrPar.rAmp], {|item|
-					~grnlrPar.rAmp = item.value;
-			}, layout: \line2);
+			~grnlrPar.put(\rAmp,
+				EZNumber.new(mainControlsView,
+					Rect(xOffset, rowSize * 3 + yOffset, kSize, kSize), "rVol",
+					[0, 1, 'lin', 0, 0], layout: \line2));
 
-			var envVol  = EZNumber.new(mainControlsView,
-				Rect(xOffset, rowSize * 4 + yOffset, kSize, kSize), "eVol",
-				[0, 1, -4, 0, ~grnlrPar.ampMod], {|item|
-					~grnlrPar.ampMod = item.value;
-			}, layout: \line2);
+			~grnlrPar.put(\ampMod,
+				EZNumber.new(mainControlsView,
+					Rect(xOffset, rowSize * 4 + yOffset, kSize, kSize), "eVol",
+					[0, 1, -4, 0, 0], layout: \line2));
 
-			var env_ampMod  = EZNumber.new(mainControlsView,
-				Rect(xOffset, rowSize * 5 + yOffset, kSize, kSize), "rEnv",
-				[0, 1, 'lin', 0, ~grnlrPar.rAmpMod], {|item|
-					~grnlrPar.rAmpMod = item.value;
-			}, layout: \line2);
+			~grnlrPar.put(\rAmpMod,
+				EZNumber.new(mainControlsView,
+					Rect(xOffset, rowSize * 5 + yOffset, kSize, kSize), "rEnv",
+					[0, 1, 'lin', 0, 0], layout: \line2));
 
-			var pan  = EZKnob.new(mainControlsView,
-				Rect(xOffset - 60, rowSize + yOffset, 50, 80), "pan",
-				[-1, 1, 'lin', 0, ~grnlrPar.pan], {|item|
-					~grnlrPar.pan = item.value;
-			}, 0, true);
+			~grnlrPar.put(\pan,
+				EZKnob.new(mainControlsView,
+					Rect(xOffset - 60, rowSize + yOffset, 50, 80), "pan",
+					[-1, 1, 'lin', 0, 0], true));
 
-			var send  = EZKnob.new(mainControlsView,
-				Rect(xOffset - 60, rowSize * 3 + yOffset, 50, 80), "send",
-				[0, 1, 'lin', 0, ~grnlrPar.send], {|item|
-					~grnlrPar.send = item.value;
-			}, 0, true);
+			~grnlrPar.put(\send,
+				EZKnob.new(mainControlsView,
+					Rect(xOffset - 60, rowSize * 3 + yOffset, 50, 80), "send",
+					[0, 1, 'lin', 0, 0], true));
 
-			var delay  = EZKnob.new(mainControlsView,
-				Rect(xOffset - 60, rowSize * 5 + yOffset, 50, 80), "delay",
-				[0, 1, 'lin', 0, ~grnlrPar.send], {|item|
-					~grnlrPar.delay = item.value;
-			}, 0, true);
-
-			// make global for midi mapping
-			~grnlrVol = vol;
-			~grnlrSend = send;
-			~grnlrDelay = delay;
+			~grnlrPar.put(\delay,
+				EZKnob.new(mainControlsView,
+					Rect(xOffset - 60, rowSize * 5 + yOffset, 50, 80), "delay",
+					[0, 1, 'lin', 0, 0], true));
 
 		}.value;
 	}.value;
@@ -437,7 +411,6 @@ s.waitForBoot{
 				["#" , Color.black, Color.white]
 			]).action_{|item|
 				if(item.value > 0){ Tdef(tDef_name).play(~clock) }{ Tdef(tDef_name).stop }
-				//if(item.value > 0){ Pdef(\clock_test).play(~clock) }{ Pdef(\clock_test).stop() }
 			};
 
 			var cur	 = EZKnob.new(view, Rect(curvePos, 30, 40, 80), "Curve", [-12, 12, 'lin', 0, 0], {|item|
@@ -488,6 +461,48 @@ s.waitForBoot{
 		seqFunc.value(seqView, "rdur",	'seq_rDur',		'rDur', 		Point(0, 1125));
 
 	}.value;
+
+	Tdef(\grnlr, {
+		var dur;
+		dur = 1;
+		loop{
+			{
+				dur = ~grnlrPar.dur.value * ( ~grnlrPar.rDur.value.rand + (1 - (~grnlrPar.rDur.value / 2)) );
+
+				if(~grnlrPar.toggle.value > 0, {
+					Synth(\grnlr, [
+						\pos,        	~grnlrPar.pos.value + (~grnlrSeq.pos * ~grnlrPar.posMod.value),
+						\trans,      	~grnlrPar.pitch.value + (~grnlrSeq.pitch * ~grnlrPar.pitchMod.value),
+						\dir,        	[-1, 1].wchoose([~grnlrPar.dir.value.linlin(-1, 1, 1, 0), ~grnlrPar.dir.value.linlin(-1, 1, 0, 1)]),
+						\vol,        	~grnlrPar.vol.value * (~grnlrSeq.amp.linlin(0, 1, ~grnlrPar.ampMod.value.linlin(0,1,1,0), 1)),
+						\pan,        	~grnlrPar.pan.value,
+						\send,       	~grnlrPar.send.value,
+						\delay,			~grnlrPar.delay.value,
+
+						\filtFreqLo, 	~grnlrPar.filtFreqLo.value,
+						\filtFreqHi, 	~grnlrPar.filtFreqHi.value,
+						\qLo,        	~grnlrPar.qLo.value,
+						\qHi,        	~grnlrPar.qHi.value,
+
+						\ampArr,			~grnlrPar.ampArr,
+						\timeArr,		~grnlrPar.timeArr.normalizeSum,
+
+						\envCurve,		~grnlrPar.envCurve.value,
+
+						\rAmp,      	~grnlrPar.rAmp.value,
+						\rPos,      	~grnlrPar.rPos.value,
+						\rPitch,    	~grnlrPar.rPitch.value,
+						\rFill,     	~grnlrPar.rFill.value,
+
+						\fillFactor,	~grnlrPar.fillFactor.value + (~grnlrSeq.fill.value * ~grnlrPar.fillMod.value),
+						\dur, 			dur
+					]);
+
+				});
+			}.defer;
+			dur.clip(0.01, 2).wait;
+		};
+	}).play;
 
 	//-------------------------- CLEANUP --------------------------------//
 	win.onClose_{
