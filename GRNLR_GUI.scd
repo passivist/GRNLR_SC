@@ -6,18 +6,10 @@
 *				use local scope (will updates to grnlrPar still work??)
 *			-> scope doesn't work like that and isn't passed in loadRelative find some other way to do this maybe with an environment?
 *
-*			rewrite so ~grnlrSeq is incorperated into ~grVar.grnlr so that the whole state of the synthesizer can be more easily
-*			stored and recalled via presets
 *
-*			like so:
-*			~parameters = (
-*					grnlr: (
-*								...
-*							),
-*					seqPos: (), ...
-*			)
+* *			finetune the parameter mappings
 *
-* BUG: send doesn't work on first execution
+* BUG: send doesn't work on first execution -> doesn't seem to happen anymore
 */
 
 loadRelative("grnlr_synth.scd");
@@ -49,7 +41,7 @@ s.waitForBoot{
 	~grVar = (
 		grnlr: (
 			ampArr:			[0,1,1,0],
-			timeArr:			[0.3,0.3,0.3],
+			timeArr:		[0.3,0.3,0.3],
 			toggle:			0,
 		),
 	);
