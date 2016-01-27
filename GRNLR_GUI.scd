@@ -465,6 +465,7 @@ s.waitForBoot{
 					dir = [-1, 1].wchoose([dir.linlin(-1, 1, 1, 0), dir.linlin(-1, 1, 0, 1)]);
 
 					trans = ~grVar.grnlr.pitch.value + (~grVar[\seqPitch].val * ~grVar.grnlr.pitchMod.value);
+					trans = trans + (~notes.choose - 60);
 
 					vol = ~grVar.grnlr.vol.value * (~grVar[\seqAmp].val.linlin(0, 1, ~grVar.grnlr.ampMod.value.linlin(0,1,1,0), 1));
 					pan = ~grVar.grnlr.pan.value;
@@ -521,6 +522,27 @@ s.waitForBoot{
 			dur.clip(0.01, 2).wait;
 		};
 	}).play;
+
+	~firstNote = nil;
+	~notes = (60: 60);
+
+
+	MIDIdef.noteOn(\noteOn, {|vel, note|
+		if(~firstNote.isNil){
+			~notes = ();
+			~firstNote = note;
+		};
+		~notes.put(note.asSymbol, note);
+	});
+
+
+	MIDIdef.noteOff(\noteOff, {|vel, note|
+		if(~notes[note.asSymbol] == ~firstNote){
+			~firstNote = nil;
+		}
+	});
+
+
 
 	//-------------------------- CLEANUP --------------------------------//
 	win.onClose_{
