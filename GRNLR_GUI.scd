@@ -10,6 +10,7 @@
 * *			finetune the parameter mappings
 *
 * BUG: send doesn't work on first execution -> doesn't seem to happen anymore
+* BUG: Timing for sequencer doesn't work correctly maybe the tdefs have to be retriggert every length change?
 */
 
 loadRelative("grnlr_synth.scd");
@@ -377,7 +378,7 @@ s.waitForBoot{
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
-				if(item.value > 0){ Tdef(tDef_name).play(~clock) }{ Tdef(tDef_name).stop }
+				if(item.value > 0){ Tdef(tDef_name).play(~glock, quant: 1)}{ Tdef(tDef_name).stop }
 			});
 
 			dict.put(\curve, EZKnob.new(view,
@@ -403,6 +404,9 @@ s.waitForBoot{
 
 			dict.put(\length, EZNumber.new(view,
 				Rect(textPos,  70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4],
+				{ |knob|
+					Tdef(tDef_name).play(~glock, quant: 1)
+				},
 				initVal: 4, layout: 'line2' ));
 
 			dict.put(\env, Env.new(0 ! dict.numSteps.value));
@@ -420,10 +424,12 @@ s.waitForBoot{
 			// doesn't this returning true mean that changes made on ~grVar[tDef_name] should reflect in dict???
 			(~grVar[tDef_name] === dict).postln;
 
+			// maybe solve timing issues with Pdef?
 			Tdef(tDef_name, {
 				var i = 0;
 				var length, env;
 				loop{
+					//if(i == 0){ Synth(\ping); ~clock.beats.postln };
 					length = ~grVar[tDef_name].length.value * 24;
 					env = ~grVar[tDef_name].env;
 					i = (i + 1) % length;
@@ -533,7 +539,7 @@ s.waitForBoot{
 			~firstNote = note;
 		};
 		~notes.put(note.asSymbol, note);
-	});
+	}, chan: 1);
 
 
 	MIDIdef.noteOff(\noteOff, {|vel, note|
@@ -541,8 +547,6 @@ s.waitForBoot{
 			~firstNote = nil;
 		}
 	});
-
-
 
 	//-------------------------- CLEANUP --------------------------------//
 	win.onClose_{
