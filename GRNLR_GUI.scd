@@ -7,10 +7,9 @@
 *			-> scope doesn't work like that and isn't passed in loadRelative find some other way to do this maybe with an environment?
 *
 *
-* *			finetune the parameter mappings
+*			finetune the parameter mappings
 *
-* BUG: send doesn't work on first execution -> doesn't seem to happen anymore
-* BUG: Timing for sequencer doesn't work correctly maybe the tdefs have to be retriggert every length change?
+* ISSUE: Server Latency between Tdefs and Pdefs. Rewrite to have consitency
 */
 
 loadRelative("grnlr_synth.scd");
@@ -42,7 +41,7 @@ s.waitForBoot{
 	~grVar = (
 		grnlr: (
 			ampArr:			[0,1,1,0],
-			timeArr:		[0.3,0.3,0.3],
+			timeArr:			[0.3,0.3,0.3],
 			toggle:			0,
 		),
 	);
@@ -405,7 +404,7 @@ s.waitForBoot{
 			dict.put(\length, EZNumber.new(view,
 				Rect(textPos,  70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4],
 				{ |knob|
-					Tdef(tDef_name).play(~glock, quant: 1)
+					if(Tdef(tDef_name).isPlaying){Tdef(tDef_name).play(~clock, quant: 1)}
 				},
 				initVal: 4, layout: 'line2' ));
 
