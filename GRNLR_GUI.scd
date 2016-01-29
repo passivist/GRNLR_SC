@@ -90,12 +90,12 @@ s.waitForBoot{
 			synthView.visible_(false);
 			seqView.visible_(true);
 		});
-
+		/*
 		var tempo = EZNumber.new(win,
 			Rect(params.offLeft + 140, 7, 94, 24), "Tempo: ", [40, 200, 'lin', 1, 120], {|item|
 				TempoClock.default.tempo = item.value/120;
 		}, 120, true, layout: 'horz', margin: 2@2);
-
+		*/
 		// on / off switch
 		~grVar.grnlr.put(\toggle,
 			Button.new(win, Rect(params.offRight - 15, 5, bSize, bSize)).states_([
@@ -377,7 +377,7 @@ s.waitForBoot{
 				[">", Color.black, Color.white],
 				["#" , Color.black, Color.white]
 			]).action_{|item|
-				if(item.value > 0){ Tdef(tDef_name).play(~glock, quant: 1)}{ Tdef(tDef_name).stop }
+				if(item.value > 0){ Tdef(tDef_name).play(~clock, quant: 1)}{ Tdef(tDef_name).stop }
 			});
 
 			dict.put(\curve, EZKnob.new(view,
