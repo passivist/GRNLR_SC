@@ -402,7 +402,7 @@ s.waitForBoot{
 			}, 1, layout: 'line2'));
 
 			dict.put(\length, EZNumber.new(view,
-				Rect(textPos,  70, 45, 40), "Length", [0.25, 32, 'lin', 0.25, 4],
+				Rect(textPos,  70, 45, 40), "Length", [0.25, 64, 'lin', 0.25, 4],
 				{ |knob|
 					if(Tdef(tDef_name).isPlaying){Tdef(tDef_name).play(~clock, quant: 1)}
 				},

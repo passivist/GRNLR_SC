@@ -41,14 +41,14 @@
 		);
 
 		// filter
-		sig = RLPF.ar(sig, filtFreqLo, qLo);
-		sig = RHPF.ar(sig, filtFreqHi, qHi);
+		sig = RLPF.ar(sig, filtFreqLo, qLo).tanh;
+		sig = RHPF.ar(sig, filtFreqHi, qHi).tanh;
 
 		sig = LeakDC.ar(sig);
 		sig = (sig * win) * vol;
 
-		sig = Splay.ar(sig, 1, center: pan, level: -6.dbamp); // panorama
-		//Out.ar(~feedBus, sig * (randAmp.linlin(0, 1, 0.5, 0) * hall)); // Hall Send
+		sig = Balance2.ar(sig[0], sig[1], pan, -6.dbamp);
+
 		Out.ar(~send, sig * send); // Hall Send
 		Out.ar(~grndl_bus, sig * delay); // delay Send
 		Out.ar(~grnlr_bus, sig); // To Looper
