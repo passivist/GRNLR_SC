@@ -92,8 +92,8 @@ s.waitForBoot{
 		});
 		/*
 		var tempo = EZNumber.new(win,
-			Rect(params.offLeft + 140, 7, 94, 24), "Tempo: ", [40, 200, 'lin', 1, 120], {|item|
-				TempoClock.default.tempo = item.value/120;
+		Rect(params.offLeft + 140, 7, 94, 24), "Tempo: ", [40, 200, 'lin', 1, 120], {|item|
+		TempoClock.default.tempo = item.value/120;
 		}, 120, true, layout: 'horz', margin: 2@2);
 		*/
 		// on / off switch
@@ -133,6 +133,9 @@ s.waitForBoot{
 					{ 0.1.wait; ~loadSynth.value(buf, ~grnlr_bus) }.fork(AppClock)			// build synthdef with buffer
 				});
 			};
+
+			waveform.timeCursorOn_(true);
+
 			~grVar.grnlr.put(\waveform, waveform);
 			~grVar.grnlr.put(\buffer, buf);
 
@@ -333,6 +336,11 @@ s.waitForBoot{
 					Rect(xOffset - 60, rowSize * 5 + yOffset, 50, 80), "delay",
 					[0, 1, 'lin', 0, 0], true));
 
+			~grVar.grnlr.put(\joyAmt,
+				EZNumber.new(mainControlsView,
+					Rect(xOffset, rowSize * 6 + yOffset, kSize, kSize), "joyAmt",
+					[0, 1, 'lin', 0, 0], layout: \line2));
+
 		}.value;
 	}.value;
 
@@ -421,7 +429,7 @@ s.waitForBoot{
 			~grVar.put(tDef_name, dict);
 
 			// doesn't this returning true mean that changes made on ~grVar[tDef_name] should reflect in dict???
-			(~grVar[tDef_name] === dict).postln;
+			// (~grVar[tDef_name] === dict).postln;
 
 			// maybe solve timing issues with Pdef?
 			Tdef(tDef_name, {
@@ -464,7 +472,16 @@ s.waitForBoot{
 		loop{
 			{
 				if(~grVar.grnlr.toggle.value > 0){
-					pos = ~grVar.grnlr.pos.value + (~grVar[\seqPos].val * ~grVar.grnlr.posMod.value);
+
+					rAmp = ~grVar.grnlr.rAmp.value;
+					rPos = ~grVar.grnlr.rPos.value;
+					rPitch = ~grVar.grnlr.rPitch.value;
+					rFill = ~grVar.grnlr.rFill.value;
+
+					pos = ~grVar.grnlr.pos.value;
+					pos = pos + (~grVar[\seqPos].val * ~grVar.grnlr.posMod.value);
+					//pos = pos + ((~joy.slot(3, 0).value - 0.5) * ~grVar.grnlr.joyAmt.value);
+					pos = pos.wrap(0, 1);
 
 					dir = ~grVar.grnlr.dir.value;
 					dir = [-1, 1].wchoose([dir.linlin(-1, 1, 1, 0), dir.linlin(-1, 1, 0, 1)]);
@@ -472,7 +489,9 @@ s.waitForBoot{
 					trans = ~grVar.grnlr.pitch.value + (~grVar[\seqPitch].val * ~grVar.grnlr.pitchMod.value);
 					trans = trans + (~notes.choose - 60);
 
-					vol = ~grVar.grnlr.vol.value * (~grVar[\seqAmp].val.linlin(0, 1, ~grVar.grnlr.ampMod.value.linlin(0,1,1,0), 1));
+					vol = ~grVar.grnlr.vol.value;
+					vol = vol * (~grVar[\seqAmp].val.linlin(0, 1, ~grVar.grnlr.ampMod.value.linlin(0,1,1,0), 1));
+
 					pan = ~grVar.grnlr.pan.value;
 					send = ~grVar.grnlr.send.value;
 					delay = ~grVar.grnlr.delay.value;
@@ -486,14 +505,10 @@ s.waitForBoot{
 					timeArr = ~grVar.grnlr.timeArr.normalizeSum;
 					envCurve = ~grVar.grnlr.envCurve.value;
 
-					rAmp = ~grVar.grnlr.rAmp.value;
-					rPos = ~grVar.grnlr.rPos.value;
-					rPitch = ~grVar.grnlr.rPitch.value;
-					rFill = ~grVar.grnlr.rFill.value;
-
-					fillFactor = ~grVar.grnlr.fillFactor.value + (~grVar[\seqFill].val * ~grVar.grnlr.fillMod.value);
-
-					dur = ~grVar.grnlr.dur.value * (~grVar.grnlr.rDur.value.rand + (1 - (~grVar.grnlr.rDur.value / 2)) );
+					fillFactor = ~grVar.grnlr.fillFactor.value;
+					fillFactor = fillFactor + (~grVar[\seqFill].val * ~grVar.grnlr.fillMod.value);
+					dur = ~grVar.grnlr.dur.value;
+					dur = dur * (~grVar.grnlr.rDur.value.rand + (1 - (~grVar.grnlr.rDur.value / 2)) );
 
 					Synth(\grnlr, [
 						\pos,        	pos,
@@ -522,6 +537,11 @@ s.waitForBoot{
 
 						\dur, 			dur
 					]);
+					/*
+					~grVar.grnlr.waveform.timeCursorPosition_(
+						((pos + (rrand(-1, 1.00)*rPos))).wrap(0, 1) * ~grVar.grnlr.waveform.numFrames
+					);
+					*/
 				};
 			}.defer;
 			dur.clip(0.01, 2).wait;
