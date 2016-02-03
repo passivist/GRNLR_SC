@@ -13,7 +13,7 @@
 		var win, sig, randPos, randAmp, randPitch, randFill, env;
 
 		// Randomization
-		randPos   = [Rand(-1, 1),     Rand(-1, 1)]     * rPos;
+		randPos   = [Rand(-0.5, 0.5), Rand(-0.5, 0.5)]     * rPos;
 		randAmp   = [Rand(-0.5, 0.5), Rand(-0.5, 0.5)] * rAmp;
 		randPitch = [Rand(-12, 12),   Rand(-12, 12)]   * rPitch;
 		randFill  = [Rand(0, 1),      Rand(0, 1)]      * rFill;

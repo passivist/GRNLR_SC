@@ -459,6 +459,19 @@ s.waitForBoot{
 
 	}.value;
 
+	Tdef(\update_Pos, {
+		loop{
+			if(~pos.notNil){
+				{
+					~grVar.grnlr.waveform.timeCursorPosition_(
+						(~pos + (~grVar.grnlr.rPos.value * rrand(-0.5, 0.50))).wrap(0, 1) * ~grVar.grnlr.waveform.numFrames
+					);
+				}.defer;
+			};
+			0.06.wait;
+		}
+	}).play;
+
 	Tdef(\grnlr, {
 		var dur;
 		var pos, dir, trans;
@@ -482,6 +495,7 @@ s.waitForBoot{
 					pos = pos + (~grVar[\seqPos].val * ~grVar.grnlr.posMod.value);
 					//pos = pos + ((~joy.slot(3, 0).value - 0.5) * ~grVar.grnlr.joyAmt.value);
 					pos = pos.wrap(0, 1);
+					~pos = pos;
 
 					dir = ~grVar.grnlr.dir.value;
 					dir = [-1, 1].wchoose([dir.linlin(-1, 1, 1, 0), dir.linlin(-1, 1, 0, 1)]);
@@ -539,7 +553,7 @@ s.waitForBoot{
 					]);
 					/*
 					~grVar.grnlr.waveform.timeCursorPosition_(
-						((pos + (rrand(-1, 1.00)*rPos))).wrap(0, 1) * ~grVar.grnlr.waveform.numFrames
+					((pos + (rrand(-1, 1.00)*rPos))).wrap(0, 1) * ~grVar.grnlr.waveform.numFrames
 					);
 					*/
 				};
