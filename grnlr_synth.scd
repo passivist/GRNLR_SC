@@ -45,12 +45,11 @@
 		sig = RHPF.ar(sig, filtFreqHi, qHi).tanh;
 
 		sig = LeakDC.ar(sig);
+		sig = Balance2.ar(sig[0], sig[1], pan, -6.dbamp);
+		Out.ar(~grndl_bus, sig * delay); // delay Send
 		sig = (sig * win) * vol;
 
-		sig = Balance2.ar(sig[0], sig[1], pan, -6.dbamp);
-
 		Out.ar(~send, sig * send); // Hall Send
-		Out.ar(~grndl_bus, sig * delay); // delay Send
 		Out.ar(~grnlr_bus, sig); // To Looper
 		Out.ar(~outBus, sig);
 	}).add;
