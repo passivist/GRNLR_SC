@@ -431,16 +431,13 @@ s.waitForBoot{
 			// doesn't this returning true mean that changes made on ~grVar[tDef_name] should reflect in dict???
 			// (~grVar[tDef_name] === dict).postln;
 
-			// maybe solve timing issues with Pdef?
 			Tdef(tDef_name, {
-				var i = 0;
-				var length, env;
+				var length, env, ind;
 				loop{
-					//if(i == 0){ Synth(\ping); ~clock.beats.postln };
-					length = ~grVar[tDef_name].length.value * 24;
+					length = ~grVar[tDef_name].length.value;
 					env = ~grVar[tDef_name].env;
-					i = (i + 1) % length;
-					~grVar[tDef_name].put(\val, env.at(i.linlin(0, length, 0, env.duration)));
+					ind = (~clock.beats % length) / length;
+					~grVar[tDef_name].put(\val, env.at(ind.linlin(0, 1, 0, env.duration)));
 					(1/24).wait;
 				}
 			});
@@ -551,16 +548,90 @@ s.waitForBoot{
 
 						\dur, 			dur
 					]);
-					/*
-					~grVar.grnlr.waveform.timeCursorPosition_(
-					((pos + (rrand(-1, 1.00)*rPos))).wrap(0, 1) * ~grVar.grnlr.waveform.numFrames
-					);
-					*/
 				};
 			}.defer;
 			dur.clip(0.01, 2).wait;
 		};
 	}).play;
+	/*
+	{
+	var dur;
+	var pos, dir, trans;
+	var vol, pan, send, delay;
+	var filtFreqLo, filtFreqHi, qLo, qHi;
+	var ampArr, timeArr, envCurve;
+	var rAmp, rPos, rPitch, rFill;
+	var fillFactor;
+	Pdef(\grnlr, Pbind(
+	\setVars, Pfunc({
+	{
+	rAmp = ~grVar.grnlr.rAmp.value;
+	rPos = ~grVar.grnlr.rPos.value;
+	rPitch = ~grVar.grnlr.rPitch.value;
+	rFill = ~grVar.grnlr.rFill.value;
+
+	pos = ~grVar.grnlr.pos.value;
+	pos = pos + (~grVar[\seqPos].val * ~grVar.grnlr.posMod.value);
+	pos = pos.wrap(0, 1);
+	~pos = pos.postln;
+
+	dir = ~grVar.grnlr.dir.value;
+	dir = [-1, 1].wchoose([dir.linlin(-1, 1, 1, 0), dir.linlin(-1, 1, 0, 1)]);
+
+	trans = ~grVar.grnlr.pitch.value + (~grVar[\seqPitch].val * ~grVar.grnlr.pitchMod.value);
+	trans = trans + (~notes.choose - 60);
+
+	vol = ~grVar.grnlr.vol.value;
+	vol = vol * (~grVar[\seqAmp].val.linlin(0, 1, ~grVar.grnlr.ampMod.value.linlin(0,1,1,0), 1));
+
+	pan = ~grVar.grnlr.pan.value;
+	send = ~grVar.grnlr.send.value;
+	delay = ~grVar.grnlr.delay.value;
+
+	filtFreqLo = ~grVar.grnlr.filtFreqLo.value;
+	filtFreqHi = ~grVar.grnlr.filtFreqHi.value;
+	qLo = ~grVar.grnlr.qLo.value;
+	qHi = ~grVar.grnlr.qHi.value;
+
+	ampArr = ~grVar.grnlr.ampArr;
+	timeArr = ~grVar.grnlr.timeArr.normalizeSum;
+	envCurve = ~grVar.grnlr.envCurve.value;
+
+	fillFactor = ~grVar.grnlr.fillFactor.value;
+	fillFactor = fillFactor + (~grVar[\seqFill].val * ~grVar.grnlr.fillMod.value);
+	dur = ~grVar.grnlr.dur.value;
+	dur = dur * (~grVar.grnlr.rDur.value.rand + (1 - (~grVar.grnlr.rDur.value / 2)) );
+	}.defer
+	}),
+	\instrument, \grnlr,
+	\pos,        	pos,
+	\trans,      	trans,
+	\dir,        	dir,
+	\vol,        	vol,
+	\pan,        	pan,
+	\send,       	send,
+	\delay,			delay,
+
+	\filtFreqLo, 	filtFreqLo,
+	\filtFreqHi, 	filtFreqHi,
+	\qLo,        	qLo,
+	\qHi,        	qHi,
+
+	\ampArr,			ampArr,
+	\timeArr,		timeArr,
+	\envCurve,		envCurve,
+
+	\rAmp,      	rAmp,
+	\rPos,      	rPos,
+	\rPitch,    	rPitch,
+	\rFill,     	rFill,
+
+	\fillFactor,	fillFactor,
+
+	\dur, 			dur
+	)).play;
+	}.value;
+	*/
 
 	~firstNote = nil;
 	~notes = (60: 60);
@@ -594,6 +665,9 @@ s.waitForBoot{
 		Tdef(\seq_rFill).stop;
 		Tdef(\seqDur).stop;
 		Tdef(\seq_rDur).stop;
+		Tdef(\update_Pos).stop;
+
+		Pdef(\grnlr).stop;
 
 		~send.free;
 		~send = nil;
