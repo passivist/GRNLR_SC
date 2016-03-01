@@ -10,6 +10,8 @@
 *			finetune the parameter mappings
 *
 * ISSUE: Server Latency between Tdefs and Pdefs. Rewrite to have consitency
+*
+* ISSUE: Reset Sequencer position value to Zero everytime restarting
 */
 
 loadRelative("grnlr_synth.scd");
@@ -130,7 +132,7 @@ s.waitForBoot{
 
 					waveform.load(path);																	// load waveform into SoundFileView#
 					~grVar.grnlr.put(\path, path);
-					{ 0.1.wait; ~loadSynth.value(buf, ~grnlr_bus) }.fork(AppClock)			// build synthdef with buffer
+					//{ 0.1.wait; ~loadSynth.value(buf, ~grnlr_bus) }.fork(AppClock)			// build synthdef with buffer
 				});
 			};
 
@@ -535,7 +537,7 @@ s.waitForBoot{
 						\qLo,        	qLo,
 						\qHi,        	qHi,
 
-						\ampArr,			ampArr,
+						\ampArr,		ampArr,
 						\timeArr,		timeArr,
 						\envCurve,		envCurve,
 
@@ -546,7 +548,14 @@ s.waitForBoot{
 
 						\fillFactor,	fillFactor,
 
-						\dur, 			dur
+						\dur, 			dur,
+
+						\buf,           buf,
+
+						\hallBus,       ~send,
+						\delayBus,      ~grndl_bus,
+						\looperBus,     ~grnlr_bus,
+						\outBus,        ~outBus
 					]);
 				};
 			}.defer;
