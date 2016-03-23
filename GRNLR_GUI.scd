@@ -113,8 +113,6 @@ s.waitForBoot{
 	//-------------------------------------------------------------------//
 	//-------------------------------------------------------------------//
 	{
-
-
 		var mainControlsView = UserView.new(synthView, Rect(0, 0, width - 20, height - 38));
 
 		var yOffset = 110;
@@ -218,7 +216,6 @@ s.waitForBoot{
 
 			}.value;
 
-
 			// fill factor
 			{
 				var xOffset = 60;
@@ -242,6 +239,7 @@ s.waitForBoot{
 						[0, 1, 'lin', 0, 0], layout: \line2));
 
 			}.value;
+
 			// grain window
 			{
 				var xOffset = 240;
@@ -342,7 +340,6 @@ s.waitForBoot{
 				EZNumber.new(mainControlsView,
 					Rect(xOffset, rowSize * 6 + yOffset, kSize, kSize), "joyAmt",
 					[0, 1, 'lin', 0, 0], layout: \line2));
-
 		}.value;
 	}.value;
 
@@ -565,7 +562,6 @@ s.waitForBoot{
 
 	~firstNote = nil;
 	~notes = (60: 60);
-
 
 	MIDIdef.noteOn(\noteOn, {|vel, note|
 		"WHAT".postln;
