@@ -19,7 +19,6 @@ Tdef(\grnlr, {
 
 					pos = ~grVar.grnlr.pos.value;
 					pos = pos + (~grVar[\seqPos].val * ~grVar.grnlr.posMod.value);
-					//pos = pos + ((~joy.slot(3, 0).value - 0.5) * ~grVar.grnlr.joyAmt.value);
 					pos = pos.wrap(0, 1);
 					~pos = pos;
 

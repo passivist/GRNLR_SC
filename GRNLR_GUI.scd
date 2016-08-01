@@ -1,56 +1,42 @@
 (
 /*
-* TODO:	make more flexible! (allow instances)
-*			-> change structure so global objects like ~grVar.grnlr and ~grnlrSeq are no longer needed
-*				by using loadRelative in a better way i.e. load INIT_GRNLR when everything else is set up so it can
-*				use local scope (will updates to grnlrPar still work??)
-*			-> scope doesn't work like that and isn't passed in loadRelative find some other way to do this maybe with an environment?
-*
-*
-*			finetune the parameter mappings
-*
-* ISSUE: Server Latency between Tdefs and Pdefs. Rewrite to have consitency
 *
 * ISSUE: Reset Sequencer position value to Zero everytime restarting
 */
 
 loadRelative("grnlr_synth.scd");
 
-if(~send.isNil){ ~send = Bus.audio(s, 2) };
-if(~grnlr_bus.isNil){ ~grnlr_bus = Bus.audio(s, 2) };
-if(~grndl_bus.isNil){ ~grndl_bus = Bus.audio(s, 2) };
-if(~outBus.isNil){ [0, 1] }; // default to first stereo output
-
 s.waitForBoot{
+	// window width and height
 	var width = 880;
 	var height = 440;
-
+	// defining the default size of knobs and buttons
 	var bSize 	= 28;
 	var kSize 	= 40;
 
-	var params = (
-		offLeft: 10,
-		offRight: width - 20,
-	);
+	var params = ( offLeft: 10, offRight: width - 20 );
+
 	var labelFont	= Font("Sans", 10, true);
 	var path 		= "String";
-	var win 			= Window.new("GRNLR", Rect(0, height, width, height), false, true, scroll: true);
+	var win 		= Window.new("GRNLR", Rect(0, height, width, height), false, true, scroll: true);
 	var synthView 	= View.new(win, Rect(10, 38, width - 20, height - 38));
 	var seqView 	= View.new(win, Rect(10, 38, width, 1510)).visible_(false);
 
 	var buf;
 
+	// create the ~grVar dictionary which will store all the variables we need to
+	// share between files
 	~grVar = (
 		grnlr: (
-			ampArr:			[0,1,1,0],
-			timeArr:			[0.3,0.3,0.3],
-			toggle:			0,
+			ampArr:	 [0,1,1,0],
+			timeArr: [0.3,0.3,0.3],
+			toggle:   0,
 		),
 	);
 
 	//-------------------------- TOP SWITCHES --------------------------//
 	{
-		// all sequences
+		// this button starts/stops all the sequences
 		var seqAll = Button.new(win, Rect(params.offRight - 65, 5, 40, bSize)).states_([
 			[">", Color.black, Color.white],
 			["#" , Color.black, Color.white]
@@ -79,26 +65,28 @@ s.waitForBoot{
 				~grVar[\seq_rDur].button.valueAction_(0);
 			};
 		};
-
-		var synth	= Button.new(win, Rect(params.offLeft, 5, 70, bSize)).states_([
+		// these two buttons (synthViewButton and seqViewButton) toggle the two display modes
+		// the synth controls and the sequencer controls
+		var synthViewButton	= Button.new(win, Rect(params.offLeft, 5, 70, bSize)).states_([
 			["Synth", Color.black, Color.white]
 		]).action_({
 			seqView.visible_(false);
 			synthView.visible_(true);
 		});
-		var seq		= Button.new(win, Rect(params.offLeft + 75, 5, 70, bSize)).states_([
+		var seqViewButton	= Button.new(win, Rect(params.offLeft + 75, 5, 70, bSize)).states_([
 			["Sequencer", Color.black, Color.white]
 		]).action_({
 			synthView.visible_(false);
 			seqView.visible_(true);
 		});
-		/*
+
 		var tempo = EZNumber.new(win,
-		Rect(params.offLeft + 140, 7, 94, 24), "Tempo: ", [40, 200, 'lin', 1, 120], {|item|
-		TempoClock.default.tempo = item.value/120;
+			Rect(params.offLeft + 140, 7, 94, 24), "Tempo: ", [40, 200, 'lin', 1, 120], {|item|
+				TempoClock.default.tempo = item.value/120;
 		}, 120, true, layout: 'horz', margin: 2@2);
-		*/
-		// on / off switch
+
+		// on / off switch, toggles scheduling if button is set to "off"
+		// no new grains will be scheduled
 		~grVar.grnlr.put(\toggle,
 			Button.new(win, Rect(params.offRight - 15, 5, bSize, bSize)).states_([
 				["Off", Color.black, Color.white],
@@ -125,12 +113,11 @@ s.waitForBoot{
 			waveform.receiveDragHandler_{
 				path = View.currentDrag.value; path.isString.postln;
 				if(path.isString, {
-					buf = Buffer.read(s, path);														// load dragged sample into buffer
+					buf = Buffer.read(s, path);	// load dragged sample into buffer
 					buf.postln;
 
-					waveform.load(path);																	// load waveform into SoundFileView#
+					waveform.load(path); // load waveform into SoundFileView#
 					~grVar.grnlr.put(\path, path);
-					//{ 0.1.wait; ~loadSynth.value(buf, ~grnlr_bus) }.fork(AppClock)			// build synthdef with buffer
 				});
 			};
 
@@ -168,7 +155,7 @@ s.waitForBoot{
 						[-1, 1, 'lin', 0, 0]))
 
 			}.value;
-			// Pitch
+			// pitch
 			{
 				var xOffset = 180;
 
@@ -444,17 +431,20 @@ s.waitForBoot{
 
 		seqFunc.value(seqView, "pos", 	'seqPos',	 	'pos', 		Point(0,    0));
 		seqFunc.value(seqView, "amp", 	'seqAmp',	 	'amp', 		Point(0,  250));
-		seqFunc.value(seqView, "pitch", 	'seqPitch',	 	'pitch', 	Point(0,  500));
-		seqFunc.value(seqView, "fill",	'seqFill',		'fill', 		Point(0,  750));
-		seqFunc.value(seqView, "dur",		'seqDur',		'dur', 		Point(0, 1000));
-		seqFunc.value(seqView, "rPos", 	'seq_rPos',	 	'rPos', 		Point(0,  125));
-		seqFunc.value(seqView, "rAmp", 	'seq_rAmp',	 	'rAmp', 		Point(0,  375));
+		seqFunc.value(seqView, "pitch", 'seqPitch',	 	'pitch', 	Point(0,  500));
+		seqFunc.value(seqView, "fill",	'seqFill',		'fill', 	Point(0,  750));
+		seqFunc.value(seqView, "dur",	'seqDur',		'dur', 		Point(0, 1000));
+		seqFunc.value(seqView, "rPos", 	'seq_rPos',	 	'rPos', 	Point(0,  125));
+		seqFunc.value(seqView, "rAmp", 	'seq_rAmp',	 	'rAmp', 	Point(0,  375));
 		seqFunc.value(seqView, "rPitch", 'seq_rPitch',	'rPitch', 	Point(0,  625));
 		seqFunc.value(seqView, "rFill",	'seq_rFill',	'rFill', 	Point(0,  875));
-		seqFunc.value(seqView, "rdur",	'seq_rDur',		'rDur', 		Point(0, 1125));
+		seqFunc.value(seqView, "rdur",	'seq_rDur',		'rDur', 	Point(0, 1125));
 
 	}.value;
 
+	// this is a little fake, the position of the waveformView curser moves randomly when
+	// the grain position is also more random but the two values actually don't have
+	// any kind of connection
 	Tdef(\update_Pos, {
 		loop{
 			if(~pos.notNil){
@@ -485,12 +475,11 @@ s.waitForBoot{
 		Tdef(\seq_rDur).stop;
 		Tdef(\update_Pos).stop;
 
-		Pdef(\grnlr).stop;
+		Tdef(\grnlr).stop;
 
 		~send.free;
 		~send = nil;
 
-		// here for sinesleeper live set
 		~grnlr_bus.free;
 		~grnlr_bus = nil;
 

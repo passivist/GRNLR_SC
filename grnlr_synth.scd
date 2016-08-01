@@ -1,5 +1,4 @@
 SynthDef(\grnlr, {
-	// arguments
 	arg out, looperBus, hallBus, delayBus,
 	pos, trans, dir, vol, pan, send, delay,
 	rPitch, rAmp, rPos, rFill,
@@ -8,11 +7,10 @@ SynthDef(\grnlr, {
 	fillFactor=1, dur,
 	buf=0;
 
-	// variables
 	var win, sig, randPos, randAmp, randPitch, randFill, env;
 
 	// Randomization
-	randPos   = [Rand(-0.5, 0.5), Rand(-0.5, 0.5)]     * rPos;
+	randPos   = [Rand(-0.5, 0.5), Rand(-0.5, 0.5)] * rPos;
 	randAmp   = [Rand(-0.5, 0.5), Rand(-0.5, 0.5)] * rAmp;
 	randPitch = [Rand(-12, 12),   Rand(-12, 12)]   * rPitch;
 	randFill  = [Rand(0, 1),      Rand(0, 1)]      * rFill;
@@ -46,11 +44,11 @@ SynthDef(\grnlr, {
 	sig = LeakDC.ar(sig);
 	sig = Balance2.ar(sig[0], sig[1], pan, -6.dbamp);
 	sig = (sig * win);
+
 	Out.ar(delayBus, sig * delay); // delay Send
+
 	sig = sig * vol;
-	
 
 	Out.ar(hallBus, sig * send); // Hall Send
-	Out.ar(looperBus, sig); // To Looper
 	Out.ar(out, sig);
 }).add;
