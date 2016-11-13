@@ -4,8 +4,6 @@
 * ISSUE: Reset Sequencer position value to Zero everytime restarting
 */
 
-loadRelative("grnlr_synth.scd");
-
 s.waitForBoot{
 	// window width and height
 	var width = 880;
@@ -73,7 +71,7 @@ s.waitForBoot{
 			seqView.visible_(false);
 			synthView.visible_(true);
 		});
-		var seqViewButton	= Button.new(win, Rect(params.offLeft + 75, 5, 70, bSize)).states_([
+		var seqViewButton = Button.new(win, Rect(params.offLeft + 75, 5, 70, bSize)).states_([
 			["Sequencer", Color.black, Color.white]
 		]).action_({
 			synthView.visible_(false);
@@ -116,7 +114,7 @@ s.waitForBoot{
 					buf = Buffer.read(s, path);	// load dragged sample into buffer
 					buf.postln;
 
-					waveform.load(path); // load waveform into SoundFileView#
+					waveform.load(path); // load waveform into SoundFileView
 					~grVar.grnlr.put(\path, path);
 				});
 			};
@@ -351,7 +349,6 @@ s.waitForBoot{
 		};
 
 		// Function for generating sequencer GUIs
-		// TODO: refactor variables into dicts
 		var seqFunc = { |parent, name, tDef_name, par_name, position|
 			var view, textPos, curvePos, stepsPos, envWidth, text, button;
 			var dict;

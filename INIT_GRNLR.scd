@@ -8,5 +8,6 @@
 	if(~outBus.isNil){ [0, 1] }; // default to first stereo output
 
 	loadRelative("GRNLR_GUI.scd");
+	loadRelative("grnlr_synth.scd");
 }.value;
 )

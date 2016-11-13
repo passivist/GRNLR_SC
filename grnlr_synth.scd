@@ -45,10 +45,10 @@ SynthDef(\grnlr, {
 	sig = Balance2.ar(sig[0], sig[1], pan, -6.dbamp);
 	sig = (sig * win);
 
-	Out.ar(delayBus, sig * delay); // delay Send
+	OffsetOut.ar(delayBus, sig * delay); // delay Send
 
 	sig = sig * vol;
 
-	Out.ar(hallBus, sig * send); // Hall Send
-	Out.ar(out, sig);
+	OffsetOut.ar(hallBus, sig * send); // Hall Send
+	OffsetOut.ar(out, sig);
 }).add;
